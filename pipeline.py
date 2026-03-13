@@ -1,0 +1,93 @@
+import re
+from typing import TypedDict
+from langgraph.graph import StateGraph, END
+import anthropic
+
+from agents.ingestion import ingest, transcribe_audio
+from agents.analyst import analyse
+from agents.diagram import generate_diagram
+
+
+class PipelineState(TypedDict):
+    raw_input: str
+    source_type: str        # 'transcript' | 'notes' | 'audio'
+    clean_text: str
+    actions_and_questions: str
+    diagram: str
+    output_path: str
+
+
+def ingestion_node(state: PipelineState) -> PipelineState:
+    client = anthropic.Anthropic()
+    raw = state["raw_input"]
+
+    # If audio, transcribe first
+    if state["source_type"] == "audio":
+        print("  [Ingestion] Transcribing audio...")
+        raw = transcribe_audio(raw)  # raw_input is file path for audio
+
+    print("  [Ingestion] Normalising input...")
+    clean = ingest(client, raw, state["source_type"])
+    return {**state, "clean_text": clean}
+
+
+def analyst_node(state: PipelineState) -> PipelineState:
+    client = anthropic.Anthropic()
+    print("  [Analyst] Extracting actions and questions...")
+    result = analyse(client, state["clean_text"])
+    return {**state, "actions_and_questions": result}
+
+
+def diagram_node(state: PipelineState) -> PipelineState:
+    client = anthropic.Anthropic()
+    print("  [Diagram] Generating architecture diagram...")
+    result = generate_diagram(client, state["clean_text"])
+    return {**state, "diagram": result}
+
+
+def output_node(state: PipelineState) -> PipelineState:
+    from pathlib import Path
+    from datetime import datetime
+
+    output_dir = Path(state["output_path"])
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    # Write actions and questions
+    actions_file = output_dir / f"actions_{timestamp}.md"
+    actions_file.write_text(state["actions_and_questions"], encoding="utf-8")
+
+    # Write diagram
+    diagram_file = output_dir / f"diagram_{timestamp}.mmd"
+    mermaid_match = re.search(r'```mermaid\n(.*?)```', state["diagram"], re.DOTALL)
+    mermaid_content = mermaid_match.group(1) if mermaid_match else state["diagram"]
+    diagram_file.write_text(mermaid_content, encoding="utf-8")
+
+    # Write clean transcript for reference
+    clean_file = output_dir / f"clean_transcript_{timestamp}.md"
+    clean_file.write_text(f"# Clean Transcript\n\n{state['clean_text']}", encoding="utf-8")
+
+    print(f"\n  [Output] Artefacts written to {output_dir}")
+    print(f"    - {actions_file.name}")
+    print(f"    - {diagram_file.name}")
+    print(f"    - {clean_file.name}")
+
+    return state
+
+
+def build_pipeline() -> StateGraph:
+    graph = StateGraph(PipelineState)
+
+    graph.add_node("ingestion", ingestion_node)
+    graph.add_node("analyst", analyst_node)
+    graph.add_node("diagram", diagram_node)
+    graph.add_node("output", output_node)
+
+    graph.set_entry_point("ingestion")
+    graph.add_edge("ingestion", "analyst")
+    graph.add_edge("analyst", "diagram")
+    graph.add_edge("diagram", "output")
+    graph.add_edge("output", END)
+
+    return graph.compile()
