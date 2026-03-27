@@ -8,3 +8,4 @@ inputs/
 *.mp3
 *.wav
 .DS_Store
+history/

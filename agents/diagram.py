@@ -1,7 +1,8 @@
-import anthropic
+import os
+from openai import OpenAI
 
 
-def generate_diagram(client: anthropic.Anthropic, clean_text: str) -> str:
+def generate_diagram(client, clean_text: str) -> str:
     """
     Diagram Agent — identifies system components and produces a Mermaid diagram.
     """
@@ -31,16 +32,17 @@ flowchart LR
 Brief plain-English explanation of what was identified and why.
 """
 
-    message = client.messages.create(
-        model="claude-opus-4-5",
-        max_tokens=2048,
-        system=system_prompt,
-        messages=[
-            {
-                "role": "user",
-                "content": f"Cleaned transcript:\n\n{clean_text}"
-            }
-        ]
+    prompt = f"""{system_prompt}
+
+Cleaned transcript:
+
+{clean_text}"""
+
+    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        max_tokens=1024,
+        messages=[{"role": "user", "content": prompt}]
     )
 
-    return message.content[0].text
+    return response.choices[0].message.content

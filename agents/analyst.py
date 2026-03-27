@@ -1,7 +1,8 @@
-import anthropic
+import os
+from openai import OpenAI
 
 
-def analyse(client: anthropic.Anthropic, clean_text: str) -> str:
+def analyse(client, clean_text: str) -> str:
     """
     Analyst Agent — extracts actions and open questions from cleaned transcript.
     """
@@ -25,16 +26,17 @@ Output format (strict markdown):
 - Q: Question text
 """
 
-    message = client.messages.create(
-        model="claude-opus-4-5",
-        max_tokens=2048,
-        system=system_prompt,
-        messages=[
-            {
-                "role": "user",
-                "content": f"Cleaned transcript:\n\n{clean_text}"
-            }
-        ]
+    prompt = f"""{system_prompt}
+
+Cleaned transcript:
+
+{clean_text}"""
+
+    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        max_tokens=1024,
+        messages=[{"role": "user", "content": prompt}]
     )
 
-    return message.content[0].text
+    return response.choices[0].message.content

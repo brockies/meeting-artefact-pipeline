@@ -14,7 +14,7 @@ Drop in a meeting transcript, notes, or voice recording — get back structured 
 git clone <your-repo>
 cd meeting-artefact-pipeline
 python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
+source venv/bin/activate  # macOS/Linux
 pip install -r requirements.txt
 ```
 
@@ -26,6 +26,13 @@ cp .env.example .env
 Get your Claude API key at: https://console.anthropic.com
 
 ### 3. Run
+#### Streamlit app (Windows Git Bash)
+```bash
+source venv/Scripts/activate
+python -m streamlit run app.py
+```
+
+#### CLI examples
 ```bash
 # From a transcript (.txt)
 python main.py inputs/my_meeting.txt

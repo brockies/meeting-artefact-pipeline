@@ -1,4 +1,5 @@
-import anthropic
+import os
+from openai import OpenAI
 import whisper
 from pathlib import Path
 
@@ -10,7 +11,7 @@ def transcribe_audio(file_path: str) -> str:
     return result["text"]
 
 
-def ingest(client: anthropic.Anthropic, raw_input: str, source_type: str = "transcript") -> str:
+def ingest(client, raw_input: str, source_type: str = "transcript") -> str:
     """
     Ingestion Agent — normalises raw input into clean structured text.
     source_type: 'transcript' | 'notes' | 'audio_text'
@@ -28,16 +29,19 @@ Rules:
 - Output clean prose, not bullet points
 """
 
-    message = client.messages.create(
-        model="claude-opus-4-5",
-        max_tokens=4096,
-        system=system_prompt,
-        messages=[
-            {
-                "role": "user",
-                "content": f"Source type: {source_type}\n\nRaw input:\n\n{raw_input}"
-            }
-        ]
+    prompt = f"""{system_prompt}
+
+Source type: {source_type}
+
+Raw input:
+
+{raw_input}"""
+
+    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        max_tokens=1024,
+        messages=[{"role": "user", "content": prompt}]
     )
 
-    return message.content[0].text
+    return response.choices[0].message.content
