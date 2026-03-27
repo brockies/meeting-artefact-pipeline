@@ -2,7 +2,7 @@ import os
 from openai import OpenAI
 
 
-def generate_diagram(client, clean_text: str) -> str:
+def generate_diagram(clean_text: str) -> str:
     """
     Diagram Agent — identifies system components and produces a Mermaid diagram.
     """

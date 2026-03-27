@@ -6,10 +6,12 @@ Drop alongside pipeline.py in the project root and run:
 
 import re
 import json
+import os
 import tempfile
 from pathlib import Path
 from datetime import datetime
 from dotenv import load_dotenv
+from openai import OpenAI
 
 load_dotenv()
 
@@ -609,10 +611,11 @@ def group_by_date(meetings: list) -> dict:
 
 # ── Rendering helpers ──────────────────────────────────────────────────────────
 
-def suggest_meeting_name(client, clean_text: str) -> str:
-    """Ask Claude to suggest a short meeting name from the transcript."""
-    message = client.messages.create(
-        model="claude-opus-4-5",
+def suggest_meeting_name(clean_text: str) -> str:
+    """Ask OpenAI to suggest a short meeting name from the transcript."""
+    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    response = client.chat.completions.create(
+        model="gpt-4o",
         max_tokens=30,
         messages=[{
             "role": "user",
@@ -623,7 +626,7 @@ def suggest_meeting_name(client, clean_text: str) -> str:
             ),
         }],
     )
-    return message.content[0].text.strip().strip('"')
+    return response.choices[0].message.content.strip().strip('"')
 
 
 def render_mermaid(mermaid_code: str):
@@ -998,8 +1001,6 @@ Be direct and professional — your audience are architects and technical leads.
                 st.session_state.chat_history[-1]["role"] == "user"):
             with st.spinner("Thinking..."):
                 try:
-                    from openai import OpenAI
-                    import os
                     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
                     meeting_context = build_meeting_context(meetings)
@@ -1096,17 +1097,14 @@ elif st.session_state.hld_mode:
         if generate:
             with st.spinner(f"Synthesising {len(selected)} meeting(s) into HLD..."):
                 try:
-                    import anthropic, tempfile as tf
                     from agents.hld import generate_hld_from_meetings
                     from agents.hld_docx import render_hld_docx
 
-                    client = anthropic.Anthropic()
                     hld_content = generate_hld_from_meetings(
-                        client=client,
                         meetings=selected,
                         project_name=project_name.strip(),
                     )
-                    with tf.NamedTemporaryFile(delete=False, suffix=".docx") as tmp:
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=".docx") as tmp:
                         render_hld_docx(hld_content, tmp.name)
                         tmp_path = tmp.name
                     with open(tmp_path, "rb") as f:
@@ -1162,9 +1160,7 @@ elif st.session_state.pipeline_result:
         with save_col:
             if "suggested_name" not in st.session_state:
                 try:
-                    import anthropic
-                    client = anthropic.Anthropic()
-                    suggested = suggest_meeting_name(client, r["clean_text"])
+                    suggested = suggest_meeting_name(r["clean_text"])
                 except Exception:
                     suggested = ""
                 ts = datetime.now().strftime("%d-%m-%Y %H:%M")
@@ -1278,31 +1274,28 @@ else:
                 tmp_path = tmp.name
 
             try:
-                import anthropic
                 from agents.ingestion import ingest, transcribe_audio
                 from agents.analyst import analyse
                 from agents.diagram import generate_diagram
                 from agents.decisions import extract_decisions
 
-                client = anthropic.Anthropic()
-
                 st.session_state.agent_states["ingestion"] = "running"; render_progress()
                 raw_input = tmp_path if is_audio else Path(tmp_path).read_text(encoding="utf-8")
                 if is_audio:
                     raw_input = transcribe_audio(tmp_path)
-                clean_text = ingest(client, raw_input, source_type)
+                clean_text = ingest(raw_input, source_type)
                 st.session_state.agent_states["ingestion"] = "done"; render_progress()
 
                 st.session_state.agent_states["analyst"] = "running"; render_progress()
-                actions_and_questions = analyse(client, clean_text)
+                actions_and_questions = analyse(clean_text)
                 st.session_state.agent_states["analyst"] = "done"; render_progress()
 
                 st.session_state.agent_states["decisions"] = "running"; render_progress()
-                decisions_raw = extract_decisions(client, clean_text)
+                decisions_raw = extract_decisions(clean_text)
                 st.session_state.agent_states["decisions"] = "done"; render_progress()
 
                 st.session_state.agent_states["diagram"] = "running"; render_progress()
-                diagram_raw = generate_diagram(client, clean_text)
+                diagram_raw = generate_diagram(clean_text)
                 st.session_state.agent_states["diagram"] = "done"; render_progress()
 
                 st.session_state.pipeline_result = {

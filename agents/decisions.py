@@ -28,7 +28,7 @@ Example:
 """
 
 
-def extract_decisions(client, clean_text: str) -> str:
+def extract_decisions(clean_text: str) -> str:
     """
     Extract decisions from the clean transcript.
     Returns a markdown string with a ## Decisions section.

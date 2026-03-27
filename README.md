@@ -21,9 +21,9 @@ pip install -r requirements.txt
 ### 2. Configure
 ```bash
 cp .env.example .env
-# Add your Claude API key to .env
+# Add your OpenAI API key to .env
 ```
-Get your Claude API key at: https://console.anthropic.com
+Set `OPENAI_API_KEY` in `.env`.
 
 ### 3. Run
 #### Streamlit app (Windows Git Bash)
@@ -64,7 +64,7 @@ meeting-artefact-pipeline/
 ```
 
 ## Stack
-- **LLM:** Claude (Anthropic) — long context, great structured output
+- **LLM:** OpenAI GPT-4o
 - **Orchestration:** LangGraph
 - **Voice transcription:** Whisper (runs locally, no API cost)
 - **Diagrams:** Mermaid (renders in GitHub, Notion, VS Code)
@@ -73,4 +73,4 @@ meeting-artefact-pipeline/
 The pipeline is stateless and containerisable. To deploy to Azure:
 1. Build as a Docker container
 2. Deploy to Azure Container Apps
-3. Swap `ANTHROPIC_API_KEY` for Azure OpenAI credentials in `.env`
+3. Swap `OPENAI_API_KEY` for Azure OpenAI credentials in `.env`

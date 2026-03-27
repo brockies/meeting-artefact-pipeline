@@ -1,7 +1,6 @@
 import re
 from typing import TypedDict
 from langgraph.graph import StateGraph, END
-import anthropic
 
 from agents.ingestion import ingest, transcribe_audio
 from agents.analyst import analyse
@@ -18,7 +17,6 @@ class PipelineState(TypedDict):
 
 
 def ingestion_node(state: PipelineState) -> PipelineState:
-    client = anthropic.Anthropic()
     raw = state["raw_input"]
 
     # If audio, transcribe first
@@ -27,21 +25,19 @@ def ingestion_node(state: PipelineState) -> PipelineState:
         raw = transcribe_audio(raw)  # raw_input is file path for audio
 
     print("  [Ingestion] Normalising input...")
-    clean = ingest(client, raw, state["source_type"])
+    clean = ingest(raw, state["source_type"])
     return {**state, "clean_text": clean}
 
 
 def analyst_node(state: PipelineState) -> PipelineState:
-    client = anthropic.Anthropic()
     print("  [Analyst] Extracting actions and questions...")
-    result = analyse(client, state["clean_text"])
+    result = analyse(state["clean_text"])
     return {**state, "actions_and_questions": result}
 
 
 def diagram_node(state: PipelineState) -> PipelineState:
-    client = anthropic.Anthropic()
     print("  [Diagram] Generating architecture diagram...")
-    result = generate_diagram(client, state["clean_text"])
+    result = generate_diagram(state["clean_text"])
     return {**state, "diagram": result}
 
 

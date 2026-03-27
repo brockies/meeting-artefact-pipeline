@@ -55,10 +55,10 @@ Return ONLY valid JSON matching this exact structure (no markdown fences, no pre
 """
 
 
-def generate_hld_content(client, clean_text: str, actions_and_questions: str,
-                          decisions_raw: str, diagram_raw: str) -> dict:
+def generate_hld_content(clean_text: str, actions_and_questions: str,
+                         decisions_raw: str, diagram_raw: str) -> dict:
     """
-    Call Claude to synthesise all pipeline outputs into structured HLD content.
+    Call OpenAI to synthesise all pipeline outputs into structured HLD content.
     Returns a dict ready for docx rendering.
     """
     from datetime import datetime
@@ -97,3 +97,39 @@ Today's date is {today}. Use this for the document_control.date field.
     raw = re.sub(r'\s*```$', '', raw)
 
     return json.loads(raw)
+
+
+def generate_hld_from_meetings(meetings: list, project_name: str) -> dict:
+    """
+    Synthesize one or more saved meetings into a single HLD payload.
+    """
+    clean_text = "\n\n".join(
+        f"### Meeting: {meeting.get('name', 'Untitled Meeting')}\n{meeting.get('clean_text', '')}".strip()
+        for meeting in meetings
+    )
+    actions_and_questions = "\n\n".join(
+        f"### Meeting: {meeting.get('name', 'Untitled Meeting')}\n{meeting.get('actions_and_questions', '')}".strip()
+        for meeting in meetings
+    )
+    decisions_raw = "\n\n".join(
+        f"### Meeting: {meeting.get('name', 'Untitled Meeting')}\n{meeting.get('decisions_raw', '')}".strip()
+        for meeting in meetings
+    )
+    diagram_raw = "\n\n".join(
+        f"### Meeting: {meeting.get('name', 'Untitled Meeting')}\n{meeting.get('diagram_raw', '')}".strip()
+        for meeting in meetings
+    )
+
+    hld = generate_hld_content(
+        clean_text=(
+            f"Project name: {project_name}\n\n"
+            "Use this exact project name as the document title.\n\n"
+            f"{clean_text}"
+        ),
+        actions_and_questions=actions_and_questions,
+        decisions_raw=decisions_raw,
+        diagram_raw=diagram_raw,
+    )
+    hld.setdefault("document_control", {})
+    hld["document_control"]["title"] = project_name
+    return hld

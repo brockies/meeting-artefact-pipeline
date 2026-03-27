@@ -2,7 +2,7 @@ import os
 from openai import OpenAI
 
 
-def analyse(client, clean_text: str) -> str:
+def analyse(clean_text: str) -> str:
     """
     Analyst Agent — extracts actions and open questions from cleaned transcript.
     """

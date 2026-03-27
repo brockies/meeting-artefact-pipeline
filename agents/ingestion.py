@@ -11,7 +11,7 @@ def transcribe_audio(file_path: str) -> str:
     return result["text"]
 
 
-def ingest(client, raw_input: str, source_type: str = "transcript") -> str:
+def ingest(raw_input: str, source_type: str = "transcript") -> str:
     """
     Ingestion Agent — normalises raw input into clean structured text.
     source_type: 'transcript' | 'notes' | 'audio_text'
