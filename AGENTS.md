@@ -9,6 +9,21 @@
 
 ---
 
+## Agent 0: Redaction Agent
+
+**Role:** Protect sensitive information before any model processing or history save.
+
+**Behaviour:**
+
+- Accept the raw transcript, notes, or transcribed audio text before it is sent to any other agent
+- Detect and tokenize likely personal or confidential references while preserving the meaning of the meeting
+- Prefer stable placeholders such as `[PERSON_1]`, `[EMAIL_1]`, `[ORG_1]`, and `[TERM_1]` instead of destructive removal
+- Support user-supplied custom sensitive terms such as client names, project codenames, or internal system names
+- Never paraphrase or rewrite the surrounding content - only replace the sensitive span itself
+- If redaction is disabled, pass the source through unchanged
+
+---
+
 ## Agent 1: Ingestion Agent
 
 **Role:** Normalise raw input into clean, structured text ready for analysis.

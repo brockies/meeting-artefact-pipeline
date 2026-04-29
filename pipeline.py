@@ -1,3 +1,4 @@
+import json
 import re
 from typing import TypedDict
 from langgraph.graph import StateGraph, END
@@ -5,11 +6,15 @@ from langgraph.graph import StateGraph, END
 from agents.ingestion import ingest, transcribe_audio
 from agents.analyst import analyse
 from agents.diagram import generate_diagram
+from agents.redaction import tokenize_sensitive_text
 
 
 class PipelineState(TypedDict):
     raw_input: str
     source_type: str        # 'transcript' | 'notes' | 'audio'
+    redaction_mode: str
+    custom_redactions: list[str]
+    redaction_summary: dict
     clean_text: str
     actions_and_questions: str
     diagram: str
@@ -18,15 +23,20 @@ class PipelineState(TypedDict):
 
 def ingestion_node(state: PipelineState) -> PipelineState:
     raw = state["raw_input"]
+    redaction_summary = {"mode": state.get("redaction_mode", "off"), "counts": {}, "custom_term_count": 0}
 
     # If audio, transcribe first
     if state["source_type"] == "audio":
         print("  [Ingestion] Transcribing audio...")
         raw = transcribe_audio(raw)  # raw_input is file path for audio
 
+    if state.get("redaction_mode") == "tokenize":
+        print("  [Redaction] Tokenising sensitive text...")
+        raw, redaction_summary = tokenize_sensitive_text(raw, state.get("custom_redactions", []))
+
     print("  [Ingestion] Normalising input...")
     clean = ingest(raw, state["source_type"])
-    return {**state, "clean_text": clean}
+    return {**state, "clean_text": clean, "redaction_summary": redaction_summary}
 
 
 def analyst_node(state: PipelineState) -> PipelineState:
@@ -64,10 +74,19 @@ def output_node(state: PipelineState) -> PipelineState:
     clean_file = output_dir / f"clean_transcript_{timestamp}.md"
     clean_file.write_text(f"# Clean Transcript\n\n{state['clean_text']}", encoding="utf-8")
 
+    if state.get("redaction_summary", {}).get("mode") == "tokenize":
+        redaction_file = output_dir / f"redaction_{timestamp}.json"
+        redaction_file.write_text(
+            json.dumps(state["redaction_summary"], indent=2),
+            encoding="utf-8",
+        )
+
     print(f"\n  [Output] Artefacts written to {output_dir}")
     print(f"    - {actions_file.name}")
     print(f"    - {diagram_file.name}")
     print(f"    - {clean_file.name}")
+    if state.get("redaction_summary", {}).get("mode") == "tokenize":
+        print(f"    - {redaction_file.name}")
 
     return state
 
